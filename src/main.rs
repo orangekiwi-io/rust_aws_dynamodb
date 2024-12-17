@@ -30,6 +30,75 @@ async fn main() {
     // Table name
     let table_name = "stratusgrid-products";
 
+    // create_ddb_table(&ddb_client, table_name.to_string()).await;
+    // insert_item_loop(&ddb_client, table_name.to_string()).await;
+    query_ddb_table(&ddb_client, table_name.to_string()).await;
+}
+
+async fn query_ddb_table(ddb_client: &Client, table_name: String) {
+    let query_op = ddb_client
+        .query()
+        .table_name(table_name)
+        .key_condition_expression("category = :the_value")
+        // .key_condition_expression("category = :the_value and productname = :the_product")
+        .expression_attribute_values(":the_value", AttributeValue::S("kitchen".to_string()))
+        // .expression_attribute_values(":the_product", AttributeValue::S("sofa".to_string()))
+        .filter_expression("price BETWEEN :lower_bound AND :upper_bound")
+        .expression_attribute_values(":lower_bound", AttributeValue::N("3.0".to_string()))
+        .expression_attribute_values(":upper_bound", AttributeValue::N("6".to_string()))
+        .projection_expression("productname, price")
+        .send()
+        .await;
+
+    if query_op.is_ok() {
+        println!("Query was successful!\n");
+
+        for ddb_item in query_op.unwrap().items() {
+            println!(
+                "Product name: {}",
+                ddb_item.get("productname").unwrap().as_s().unwrap()
+            );
+            println!("Price: {}", ddb_item.get("price").unwrap().as_n().unwrap());
+            // for ddb_attr in ddb_item.iter() {
+            //     println!(
+            //         "{}: {}",
+            //         ddb_attr.0,
+            //         ddb_attr.1.as_s().or(ddb_attr.1.as_n()).unwrap()
+            //     )
+            // }
+            println!("------------------")
+        }
+        // println!(
+        //     "There was/were {} item(s) retrieved from the partition",
+        //     query_op.unwrap().count()
+        // );
+    } else {
+        println!("Error occurred during query operation");
+        println!("{:#?}", query_op.err());
+    }
+}
+
+async fn insert_item_loop(ddb_client: &Client, table_name: String) {
+    loop {
+        let new_category = get_value("category".to_string());
+        if new_category == "q".to_string() {
+            break;
+        }
+        let new_productname = get_value("product name".to_string());
+        let new_price = get_value("price".to_string());
+
+        write_product(
+            &ddb_client,
+            table_name.clone(),
+            new_category,
+            new_productname,
+            new_price,
+        )
+        .await;
+    }
+}
+
+async fn create_ddb_table(ddb_client: &Client, table_name: String) {
     let attr_part = AttributeDefinition::builder()
         .attribute_name("category")
         .attribute_type(ScalarAttributeType::S)
@@ -71,24 +140,16 @@ async fn main() {
         println!("Error occurred while creating DynamoDB table.");
         println!("{:#?}", create_result.err());
     }
+}
 
-    loop {
-        let new_category = get_value("category".to_string());
-        if new_category == "q".to_string() {
-            break;
-        }
-        let new_productname = get_value("product name".to_string());
-        let new_price = get_value("price".to_string());
+fn get_value(value: String) -> String {
+    print!("Enter {}: ", value);
+    _ = stdout().flush();
+    let mut user_input = String::new();
+    _ = stdin().read_line(&mut user_input);
+    user_input = user_input.trim_end().to_string();
 
-        write_product(
-            &ddb_client,
-            table_name.to_string(),
-            new_category,
-            new_productname,
-            new_price,
-        )
-        .await;
-    }
+    return user_input;
 }
 
 async fn write_product(
@@ -110,14 +171,4 @@ async fn write_product(
     if put_item_result.is_err() {
         println!("{:#?}", put_item_result.err());
     }
-}
-
-fn get_value(value: String) -> String {
-    print!("Enter {}: ", value);
-    _ = stdout().flush();
-    let mut user_input = String::new();
-    _ = stdin().read_line(&mut user_input);
-    user_input = user_input.trim_end().to_string();
-
-    return user_input;
 }
