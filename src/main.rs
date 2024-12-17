@@ -50,31 +50,34 @@ async fn query_ddb_table(ddb_client: &Client, table_name: String) {
         .send()
         .await;
 
-    if query_op.is_ok() {
-        println!("Query was successful!\n");
+    match query_op {
+        Ok(_) => {
+            println!("Query was successful!\n");
 
-        for ddb_item in query_op.unwrap().items() {
-            println!(
-                "Product name: {}",
-                ddb_item.get("productname").unwrap().as_s().unwrap()
-            );
-            println!("Price: {}", ddb_item.get("price").unwrap().as_n().unwrap());
-            // for ddb_attr in ddb_item.iter() {
-            //     println!(
-            //         "{}: {}",
-            //         ddb_attr.0,
-            //         ddb_attr.1.as_s().or(ddb_attr.1.as_n()).unwrap()
-            //     )
-            // }
-            println!("------------------")
+            for ddb_item in query_op.unwrap().items() {
+                println!(
+                    "Product name: {}",
+                    ddb_item.get("productname").unwrap().as_s().unwrap()
+                );
+                println!("Price: {}", ddb_item.get("price").unwrap().as_n().unwrap());
+                // for ddb_attr in ddb_item.iter() {
+                //     println!(
+                //         "{}: {}",
+                //         ddb_attr.0,
+                //         ddb_attr.1.as_s().or(ddb_attr.1.as_n()).unwrap()
+                //     )
+                // }
+                println!("------------------")
+            }
+            // println!(
+            //     "There was/were {} item(s) retrieved from the partition",
+            //     query_op.unwrap().count()
+            // );
         }
-        // println!(
-        //     "There was/were {} item(s) retrieved from the partition",
-        //     query_op.unwrap().count()
-        // );
-    } else {
-        println!("Error occurred during query operation");
-        println!("{:#?}", query_op.err());
+        Err(_) => {
+            println!("Error occurred during query operation");
+            println!("{:#?}", query_op.err());
+        }
     }
 }
 
@@ -134,11 +137,14 @@ async fn create_ddb_table(ddb_client: &Client, table_name: String) {
         .send()
         .await;
 
-    if create_result.is_ok() {
-        println!("Creating DynamoDB table was successful!");
-    } else {
-        println!("Error occurred while creating DynamoDB table.");
-        println!("{:#?}", create_result.err());
+    match create_result {
+        Ok(_results) => {
+            println!("Creating DynamoDB table was successful!");
+        }
+        Err(ddb_err) => {
+            println!("Error occurred while creating DynamoDB table.");
+            println!("{:#?}", ddb_err);
+        }
     }
 }
 
